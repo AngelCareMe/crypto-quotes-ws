@@ -1,0 +1,12 @@
+{
+  "name": "crypto-quotes-ws",
+  "version": "1.0.0",
+  "description": "Котировки криптовалют в реальном времени через WebSocket (Binance)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
