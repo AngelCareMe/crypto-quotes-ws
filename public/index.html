@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Котировки криптовалют онлайн</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 { font-size: 28px; margin-bottom: 10px; }
+
+    .status { font-size: 14px; margin-bottom: 30px; color: #facc15; }
+    .status.online  { color: #4ade80; }
+    .status.offline { color: #f87171; }
+
+    #quotes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      max-width: 900px;
+    }
+
+    .card {
+      background: #1e293b;
+      border-radius: 14px;
+      padding: 20px 30px;
+      min-width: 200px;
+      text-align: center;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .card .symbol { font-size: 14px; letter-spacing: 1px; color: #94a3b8; margin-bottom: 8px; }
+    .card .price  { font-size: 24px; font-weight: 600; }
+    .card .change { font-size: 13px; margin-top: 6px; }
+
+    .up   { color: #4ade80; }
+    .down { color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>Котировки криптовалют онлайн</h1>
+  <p id="status" class="status">Подключение к серверу...</p>
+  <div id="quotes"></div>
+
+  <script>
+    // -------------------------------------------------
+    //  Клиентская часть: подключение к нашему серверу
+    // -------------------------------------------------
+
+    // 1. Устанавливаем соединение с локальным WebSocket-сервером
+    const socket = new WebSocket('ws://localhost:8080');
+
+    const statusEl = document.getElementById('status');
+    const quotesEl = document.getElementById('quotes');
+
+    // 2. Соединение открыто — обновляем статус подключения
+    socket.onopen = () => {
+      statusEl.textContent = 'Подключено к серверу, приём котировок...';
+      statusEl.className = 'status online';
+    };
+
+    // 3. Принимаем сообщения от сервера (JSON в формате Binance)
+    socket.onmessage = (event) => {
+      const packet = JSON.parse(event.data); // { stream: "...", data: {...} }
+      const ticker = packet.data;
+
+      const symbol = ticker.s;               // символ, напр. "BTCUSDT"
+      const price  = parseFloat(ticker.c);   // последняя цена
+      const change = parseFloat(ticker.P);   // изменение за 24ч, %
+
+      renderQuote(symbol, price, change);
+    };
+
+    // 4. Соединение закрыто — обновляем статус
+    socket.onclose = () => {
+      statusEl.textContent = 'Соединение с сервером закрыто';
+      statusEl.className = 'status offline';
+    };
+
+    socket.onerror = () => {
+      statusEl.textContent = 'Ошибка соединения';
+      statusEl.className = 'status offline';
+    };
+
+    // 5. Динамическое создание и обновление карточек котировок
+    function renderQuote(symbol, price, change) {
+      // ищем уже созданную карточку символа
+      let card = document.getElementById('card-' + symbol);
+
+      // если карточки нет — создаём элемент и добавляем его в DOM
+      if (!card) {
+        card = document.createElement('div');
+        card.className = 'card';
+        card.id = 'card-' + symbol;
+        card.innerHTML =
+          '<div class="symbol">' + symbol + '</div>' +
+          '<div class="price">--</div>' +
+          '<div class="change">--</div>';
+        quotesEl.appendChild(card);
+      }
+
+      // цена с подсветкой направления изменения (рост/падение)
+      const priceEl  = card.querySelector('.price');
+      const oldPrice = parseFloat(priceEl.textContent);
+      priceEl.textContent = price.toFixed(2);
+      if (!isNaN(oldPrice)) {
+        priceEl.className = 'price ' + (price >= oldPrice ? 'up' : 'down');
+      }
+
+      // суточное изменение со знаком и цветом
+      const changeEl = card.querySelector('.change');
+      changeEl.textContent = (change >= 0 ? '+' : '') + change.toFixed(2) + '%';
+      changeEl.className = 'change ' + (change >= 0 ? 'up' : 'down');
+    }
+  </script>
+</body>
+</html>
